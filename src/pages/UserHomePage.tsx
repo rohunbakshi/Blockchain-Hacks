@@ -46,11 +46,35 @@ export function UserHomePage() {
     ? `${userData.firstName} ${userData.lastName}`
     : 'Bob Jones';
   
-  const profileImageUrl = userData.profileImage || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop';
-
   // Get parsed education and work experience from userData
   const parsedEducation = userData.education || [];
   const parsedWorkExperience = userData.workExperience || [];
+
+  // Get most recent education for profile badge
+  const getMostRecentEducation = () => {
+    if (!parsedEducation || parsedEducation.length === 0) {
+      return null;
+    }
+
+    // Sort by year (most recent first) - if year exists
+    // If no year, assume the last one in array is most recent
+    const sortedEducation = [...parsedEducation].sort((a, b) => {
+      if (a.year && b.year) {
+        // Compare years (higher year = more recent)
+        // Extract year from string (might be "2024" or "2024-2028" or "Graduated 2024")
+        const aYear = parseInt(a.year.toString().match(/\d{4}/)?.[0] || '0');
+        const bYear = parseInt(b.year.toString().match(/\d{4}/)?.[0] || '0');
+        return bYear - aYear;
+      }
+      if (a.year && !b.year) return -1; // a has year, b doesn't - a is more recent
+      if (!a.year && b.year) return 1;  // b has year, a doesn't - b is more recent
+      return 0; // Neither has year, maintain order (assume last is most recent)
+    });
+
+    return sortedEducation[0];
+  };
+
+  const mostRecentEducation = getMostRecentEducation();
 
   // Debug: Log parsed data when it changes
   useEffect(() => {
@@ -269,9 +293,12 @@ export function UserHomePage() {
 
       {/* Header */}
       <header className="relative bg-white/80 backdrop-blur-md border-b border-teal-200/50 px-8 py-5 flex items-center justify-between shadow-sm">
-        <div className="text-2xl bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
+        <button
+          onClick={() => navigateTo('landing')}
+          className="text-2xl bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent hover:from-teal-700 hover:to-cyan-700 cursor-pointer transition-all"
+        >
           CredentialHub
-        </div>
+        </button>
         <div className="flex items-center gap-2">
           <button className="p-3 hover:bg-teal-50 rounded-xl transition-all relative group">
             <Bell className="w-5 h-5 text-slate-700" />
@@ -301,15 +328,15 @@ export function UserHomePage() {
             <div className="bg-white/80 backdrop-blur-xl border border-teal-200/50 p-8 rounded-3xl shadow-xl">
               <div className="flex flex-col items-center mb-6">
                 <div className="relative mb-6">
-                  {profileImageUrl ? (
+                  {userData.profileImage ? (
                     <img
-                      src={profileImageUrl}
+                      src={userData.profileImage}
                       alt={displayName}
                       className="w-32 h-32 rounded-full object-cover border-4 border-teal-500 shadow-lg"
                     />
                   ) : (
-                    <div className="w-32 h-32 rounded-full border-4 border-teal-500 flex items-center justify-center bg-teal-50">
-                      <User className="w-16 h-16 text-teal-400" />
+                    <div className="w-32 h-32 rounded-full border-4 border-teal-500 flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 shadow-lg">
+                      <User className="w-16 h-16 text-slate-500" />
                     </div>
                   )}
                   <div className="absolute bottom-2 right-2 w-6 h-6 bg-emerald-500 rounded-full border-4 border-white shadow-lg"></div>
@@ -317,13 +344,16 @@ export function UserHomePage() {
 
                 <h2 className="text-2xl text-slate-900 mb-4">{displayName}</h2>
 
-                <div className="flex gap-2 mb-6">
-                  <Badge className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:from-teal-600 hover:to-cyan-600 px-4 py-1 rounded-full">
-                    MIT
-                  </Badge>
-                  <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 px-4 py-1 rounded-full">
-                    Google SWE
-                  </Badge>
+                <div className="flex gap-2 mb-6 flex-wrap justify-center">
+                  {mostRecentEducation && mostRecentEducation.institution ? (
+                    <Badge className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:from-teal-600 hover:to-cyan-600 px-4 py-1 rounded-full">
+                      {mostRecentEducation.institution}
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-gradient-to-r from-slate-400 to-slate-500 text-white px-4 py-1 rounded-full opacity-60">
+                      No Education Listed
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="w-full space-y-2 mb-6">
