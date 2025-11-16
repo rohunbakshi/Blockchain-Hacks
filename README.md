@@ -14,11 +14,17 @@ A modern web application for managing blockchain-verified credentials, connectin
 
 ## Tech Stack
 
+### Frontend
 - **React 18** with TypeScript
 - **Vite** for fast development and building
 - **Tailwind CSS v4** for styling
 - **Radix UI** for accessible components
 - **Sonner** for toast notifications
+
+### Backend
+- **Express.js** for REST API
+- **Multer** for file upload handling
+- **CORS** for cross-origin requests
 
 ## Getting Started
 
@@ -29,12 +35,19 @@ A modern web application for managing blockchain-verified credentials, connectin
 
 ### Installation
 
-1. Install dependencies:
+1. Install frontend dependencies:
 ```bash
 npm install
 ```
 
-2. Set up environment variables (optional for AI resume parsing):
+2. Install backend dependencies:
+```bash
+cd server
+npm install
+cd ..
+```
+
+3. Set up environment variables (optional for AI resume parsing):
    - Create a `.env` file in the root directory
    - Add your OpenAI API key:
    ```
@@ -43,7 +56,15 @@ npm install
    - Get your API key from: https://platform.openai.com/api-keys
    - Note: Without the API key, resume parsing will use fallback regex-based extraction
 
-3. Start the development server:
+4. Start the backend server:
+```bash
+cd server
+npm run dev
+```
+
+The backend will run on `http://localhost:3001`
+
+5. In a new terminal, start the frontend development server:
 ```bash
 npm run dev
 ```

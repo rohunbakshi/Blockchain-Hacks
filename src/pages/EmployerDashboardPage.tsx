@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from '../components/Router';
-import { Building2, CheckCircle, ShieldCheck, FileText } from 'lucide-react';
+import { CheckCircle, ShieldCheck, FileText } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
 
@@ -40,7 +40,7 @@ export function EmployerDashboardPage() {
     }
   };
 
-  const handleRejectRequest = (requestId: string) => {
+  const handleRejectRequest = (_requestId: string) => {
     toast.error('Request rejected');
   };
 
