@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, Settings, User, ShieldCheck, Briefcase, Share2, CheckCircle, Clock, X, Send, Search, Building2 } from 'lucide-react';
 import { useRouter } from '../components/Router';
 import { Button } from '../components/ui/button';
@@ -16,11 +16,7 @@ interface VerificationRequest {
   status: 'pending' | 'verified';
 }
 
-const mockVerificationQueue: VerificationRequest[] = [
-  { id: '1', work: 'Software Engineer at Meta', time: '2 days ago', status: 'pending' },
-  { id: '2', work: 'Bachelor of CS at MIT', time: '5 days ago', status: 'verified' },
-  { id: '3', work: 'Teaching Assistant at MIT', time: '1 week ago', status: 'verified' },
-];
+// Verification queue starts empty - items are added as users submit verification requests
 
 const mockJobMatches = [
   { id: '1', company: 'Google', position: 'Senior Software Engineer', location: 'Mountain View, CA', match: '95%' },
@@ -29,8 +25,8 @@ const mockJobMatches = [
 ];
 
 export function UserHomePage() {
-  const { userData, navigateTo } = useRouter();
-  const [verificationQueue] = useState(mockVerificationQueue);
+  const { userData, navigateTo, setUserData } = useRouter();
+  const [verificationQueue, setVerificationQueue] = useState<VerificationRequest[]>([]);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [showJobMatchesModal, setShowJobMatchesModal] = useState(false);
   const [showShareResumeModal, setShowShareResumeModal] = useState(false);
@@ -39,6 +35,8 @@ export function UserHomePage() {
   const [verificationType, setVerificationType] = useState('');
   const [verificationEntity, setVerificationEntity] = useState('');
   const [verificationDetails, setVerificationDetails] = useState('');
+  const [selectedEducationIndex, setSelectedEducationIndex] = useState<number | null>(null);
+  const [showEducationSelector, setShowEducationSelector] = useState(false);
   
   // Share Resume Modal State
   const [recipientEmail, setRecipientEmail] = useState('');
@@ -50,13 +48,207 @@ export function UserHomePage() {
   
   const profileImageUrl = userData.profileImage || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop';
 
+  // Get parsed education and work experience from userData
+  const parsedEducation = userData.education || [];
+  const parsedWorkExperience = userData.workExperience || [];
+
+  // Debug: Log parsed data when it changes
+  useEffect(() => {
+    console.log('UserData education:', userData.education);
+    console.log('UserData workExperience:', userData.workExperience);
+    console.log('Parsed education array:', parsedEducation);
+    console.log('Parsed work experience array:', parsedWorkExperience);
+  }, [userData.education, userData.workExperience, parsedEducation, parsedWorkExperience]);
+
+  // Auto-fill when verification type changes to education
+  useEffect(() => {
+    if (verificationType === 'education' && parsedEducation.length > 0) {
+      console.log('=== useEffect triggered: Education type selected');
+      console.log('=== parsedEducation:', JSON.stringify(parsedEducation, null, 2));
+      
+      if (parsedEducation.length === 1 && !verificationEntity) {
+        // Only one education entry - autofill directly if not already filled
+        const education = parsedEducation[0];
+        console.log('=== useEffect: Auto-filling with single education:', JSON.stringify(education, null, 2));
+        
+        if (education && education.institution) {
+          console.log('=== useEffect: Setting institution to:', education.institution);
+          setVerificationEntity(education.institution);
+          
+          // Build degree text
+          let degreeText = '';
+          if (education.degree && education.field) {
+            degreeText = `${education.degree} in ${education.field}`;
+          } else if (education.degree) {
+            degreeText = education.degree;
+          } else if (education.field) {
+            degreeText = education.field;
+          }
+          
+          if (education.year) {
+            degreeText += ` (${education.year})`;
+          }
+          
+          if (degreeText && !verificationDetails) {
+            setVerificationDetails(degreeText);
+            console.log('=== useEffect: Set details to:', degreeText);
+          }
+        } else {
+          console.error('=== useEffect: Education entry missing institution!', education);
+        }
+      } else if (parsedEducation.length > 1 && !showEducationSelector) {
+        // Multiple education entries - show selector
+        console.log('=== useEffect: Multiple education entries found, showing selector');
+        setShowEducationSelector(true);
+      }
+    }
+  }, [verificationType, parsedEducation, verificationEntity, verificationDetails, showEducationSelector]);
+
+  // Handle verification type change - autofill education if selected
+  const handleVerificationTypeChange = (type: string) => {
+    console.log('=== Verification type changed to:', type);
+    console.log('=== Current parsed education data:', JSON.stringify(parsedEducation, null, 2));
+    console.log('=== Current parsed work experience data:', JSON.stringify(parsedWorkExperience, null, 2));
+    console.log('=== Full userData:', JSON.stringify(userData, null, 2));
+    console.log('=== userData.education:', userData.education);
+    console.log('=== parsedEducation.length:', parsedEducation.length);
+    
+    setVerificationType(type);
+    setSelectedEducationIndex(null);
+    setShowEducationSelector(false);
+    
+    // Use setTimeout to ensure state updates happen after Select component finishes
+    setTimeout(() => {
+      // Re-fetch education data in case it was just set
+      const currentEducation = userData.education || [];
+      console.log('=== Inside setTimeout - currentEducation:', JSON.stringify(currentEducation, null, 2));
+      
+      if (type === 'education' && currentEducation.length > 0) {
+        console.log('=== Education selected, found', currentEducation.length, 'education entries');
+        
+        if (currentEducation.length === 1) {
+          // Only one education entry - autofill directly
+          const education = currentEducation[0];
+          console.log('=== Auto-filling with single education:', JSON.stringify(education, null, 2));
+          
+          if (education && education.institution) {
+            console.log('=== Setting institution name to:', education.institution);
+            setVerificationEntity(education.institution);
+            
+            // Build degree text
+            let degreeText = '';
+            if (education.degree && education.field) {
+              degreeText = `${education.degree} in ${education.field}`;
+            } else if (education.degree) {
+              degreeText = education.degree;
+            } else if (education.field) {
+              degreeText = education.field;
+            }
+            
+            if (education.year) {
+              degreeText += ` (${education.year})`;
+            }
+            
+            if (degreeText) {
+              setVerificationDetails(degreeText);
+              console.log('=== Set details to:', degreeText);
+            }
+          } else {
+            console.error('=== Education entry missing institution field!', education);
+            console.error('=== Available fields:', Object.keys(education || {}));
+          }
+        } else {
+          // Multiple education entries - show selector
+          console.log('=== Multiple education entries found, showing selector');
+          setShowEducationSelector(true);
+          setVerificationEntity('');
+          setVerificationDetails('');
+        }
+      } else if (type === 'employment' && parsedWorkExperience.length > 0) {
+        // Could also autofill from work experience if needed
+        setVerificationEntity('');
+        setVerificationDetails('');
+      } else {
+        if (type === 'education') {
+          console.warn('=== Education type selected but no parsed education data found!');
+          console.warn('=== userData.education:', userData.education);
+          console.warn('=== currentEducation array:', currentEducation);
+          console.warn('=== currentEducation.length:', currentEducation.length);
+        }
+        setVerificationEntity('');
+        setVerificationDetails('');
+      }
+    }, 100);
+  };
+
+  // Handle education selection
+  const handleEducationSelect = (index: number) => {
+    setSelectedEducationIndex(index);
+    const selectedEducation = parsedEducation[index];
+    console.log('Education selected at index', index, ':', selectedEducation);
+    
+    if (selectedEducation.institution) {
+      setVerificationEntity(selectedEducation.institution);
+      console.log('Set institution name to:', selectedEducation.institution);
+    } else {
+      console.warn('Selected education missing institution field:', selectedEducation);
+    }
+    
+    // Build degree text
+    let degreeText = '';
+    if (selectedEducation.degree && selectedEducation.field) {
+      degreeText = `${selectedEducation.degree} in ${selectedEducation.field}`;
+    } else if (selectedEducation.degree) {
+      degreeText = selectedEducation.degree;
+    } else if (selectedEducation.field) {
+      degreeText = selectedEducation.field;
+    }
+    
+    if (selectedEducation.year) {
+      degreeText += ` (${selectedEducation.year})`;
+    }
+    
+    if (degreeText) {
+      setVerificationDetails(degreeText);
+      console.log('Set details to:', degreeText);
+    }
+    
+    setShowEducationSelector(false);
+  };
+
   const handleRequestVerification = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Create verification request
+    const requestId = Date.now().toString();
+    let workText = '';
+    
+    if (verificationType === 'education') {
+      const education = selectedEducationIndex !== null 
+        ? parsedEducation[selectedEducationIndex]
+        : parsedEducation[0];
+      workText = `${education?.degree || verificationDetails} from ${verificationEntity}`;
+    } else {
+      workText = verificationEntity;
+    }
+    
+    const newRequest: VerificationRequest = {
+      id: requestId,
+      work: workText,
+      time: 'Just now',
+      status: 'pending',
+    };
+
+    // Add to verification queue
+    setVerificationQueue(prev => [newRequest, ...prev]);
+
     toast.success('Verification request submitted!');
     setShowVerificationModal(false);
     setVerificationType('');
     setVerificationEntity('');
     setVerificationDetails('');
+    setSelectedEducationIndex(null);
+    setShowEducationSelector(false);
   };
 
   const handleShareResume = (e: React.FormEvent) => {
@@ -153,23 +345,31 @@ export function UserHomePage() {
               </h3>
               
               <div className="space-y-3">
-                {verificationQueue.map((item) => (
-                  <div key={item.id} className="bg-gradient-to-r from-slate-50 to-teal-50/50 border border-teal-200/30 p-4 rounded-2xl hover:shadow-md transition-all">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <p className="text-sm text-slate-900 mb-1">{item.work}</p>
-                        <p className="text-xs text-slate-500">{item.time}</p>
-                      </div>
-                      <div className="flex items-center">
-                        {item.status === 'verified' ? (
-                          <CheckCircle className="w-5 h-5 text-emerald-500" />
-                        ) : (
-                          <Clock className="w-5 h-5 text-orange-500" />
-                        )}
+                {verificationQueue.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500">
+                    <ShieldCheck className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                    <p className="text-sm">No verification requests yet</p>
+                    <p className="text-xs mt-1">Submit a verification request to get started</p>
+                  </div>
+                ) : (
+                  verificationQueue.map((item) => (
+                    <div key={item.id} className="bg-gradient-to-r from-slate-50 to-teal-50/50 border border-teal-200/30 p-4 rounded-2xl hover:shadow-md transition-all">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="text-sm text-slate-900 mb-1">{item.work}</p>
+                          <p className="text-xs text-slate-500">{item.time}</p>
+                        </div>
+                        <div className="flex items-center">
+                          {item.status === 'verified' ? (
+                            <CheckCircle className="w-5 h-5 text-emerald-500" />
+                          ) : (
+                            <Clock className="w-5 h-5 text-orange-500" />
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -235,28 +435,66 @@ export function UserHomePage() {
             <form onSubmit={handleRequestVerification} className="p-6 space-y-6">
               <div>
                 <Label className="text-teal-700 mb-2 block">Verification Type</Label>
-                <Select value={verificationType} onValueChange={setVerificationType} required>
+                <Select value={verificationType} onValueChange={handleVerificationTypeChange} required>
                   <SelectTrigger className="border-2 border-teal-200/50 focus:border-teal-500 rounded-xl h-12">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="employment">Employment History</SelectItem>
                     <SelectItem value="education">Education Degree</SelectItem>
-                    <SelectItem value="certification">Professional Certification</SelectItem>
-                    <SelectItem value="skill">Skill Endorsement</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* Education Selector - shown when multiple education entries exist */}
+              {showEducationSelector && parsedEducation.length > 1 && (
+                <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
+                  <Label className="text-teal-700 mb-3 block">Select Education to Verify</Label>
+                  <div className="space-y-2">
+                    {parsedEducation.map((edu, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleEducationSelect(index)}
+                        className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                          selectedEducationIndex === index
+                            ? 'border-teal-500 bg-teal-100'
+                            : 'border-teal-200 bg-white hover:border-teal-300'
+                        }`}
+                      >
+                        <div className="font-medium text-slate-900">{edu.degree} in {edu.field}</div>
+                        <div className="text-sm text-slate-600">{edu.institution}</div>
+                        {edu.year && <div className="text-xs text-slate-500 mt-1">{edu.year}</div>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
-                <Label className="text-teal-700 mb-2 block">Company/Institution Name</Label>
+                <Label className="text-teal-700 mb-2 block">
+                  {verificationType === 'education' ? 'Institution Name' : 'Company Name'}
+                  {verificationType === 'education' && parsedEducation.length > 0 && (
+                    <span className="text-xs text-teal-500 ml-2">
+                      (Auto-filled from resume)
+                    </span>
+                  )}
+                </Label>
                 <Input
                   value={verificationEntity}
-                  onChange={(e) => setVerificationEntity(e.target.value)}
-                  placeholder="e.g., Google, MIT, etc."
+                  onChange={(e) => {
+                    console.log('=== Institution field manually changed to:', e.target.value);
+                    setVerificationEntity(e.target.value);
+                  }}
+                  placeholder={verificationType === 'education' ? 'e.g., MIT, Stanford, etc.' : 'e.g., Google, Microsoft, etc.'}
                   className="border-2 border-teal-200/50 focus:border-teal-500 rounded-xl h-12"
                   required
                 />
+                {verificationType === 'education' && parsedEducation.length > 0 && !verificationEntity && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Debug: Education data found but not filled. Check console for details.
+                  </p>
+                )}
               </div>
 
               <div>

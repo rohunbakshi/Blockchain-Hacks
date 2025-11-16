@@ -9,6 +9,8 @@ A modern web application for managing blockchain-verified credentials, connectin
 - 🏆 **Build Reputation**: Create your verified professional identity on Web3
 - 👤 **Multi-role Support**: Student, Employer, and Institution dashboards
 - 🎨 **Modern UI**: Beautiful, responsive interface built with React and Tailwind CSS
+- 🤖 **AI Resume Parsing**: Automatically extract and fill profile information from uploaded resumes using AI
+- 🔗 **Gemini Wallet Integration**: Seamless connection with Gemini Wallet for Web3 authentication
 
 ## Tech Stack
 
@@ -23,6 +25,7 @@ A modern web application for managing blockchain-verified credentials, connectin
 ### Prerequisites
 
 - Node.js 18+ and npm/yarn/pnpm
+- OpenAI API Key (optional, for AI resume parsing)
 
 ### Installation
 
@@ -31,7 +34,16 @@ A modern web application for managing blockchain-verified credentials, connectin
 npm install
 ```
 
-2. Start the development server:
+2. Set up environment variables (optional for AI resume parsing):
+   - Create a `.env` file in the root directory
+   - Add your OpenAI API key:
+   ```
+   VITE_OPENAI_API_KEY=your_openai_api_key_here
+   ```
+   - Get your API key from: https://platform.openai.com/api-keys
+   - Note: Without the API key, resume parsing will use fallback regex-based extraction
+
+3. Start the development server:
 ```bash
 npm run dev
 ```

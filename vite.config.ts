@@ -9,11 +9,26 @@ export default defineConfig({
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     alias: {
       '@': path.resolve(__dirname, './src'),
+      buffer: 'buffer',
     },
+  },
+  define: {
+    'process.env': {},
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    exclude: ['pdfjs-dist'],
   },
   build: {
     target: 'esnext',
     outDir: 'build',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'pdfjs': ['pdfjs-dist'],
+        },
+      },
+    },
   },
   server: {
     port: 3000,

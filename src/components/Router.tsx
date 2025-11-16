@@ -30,6 +30,19 @@ interface UserData {
   lastFourSSN?: string;
   profileImage?: string;
   documents?: File[];
+  // Parsed resume data
+  education?: Array<{
+    institution: string;
+    degree: string;
+    field: string;
+    year?: string;
+  }>;
+  workExperience?: Array<{
+    company: string;
+    position: string;
+    duration: string;
+    description?: string;
+  }>;
 }
 
 const RouterContext = createContext<RouterContextType | undefined>(undefined);

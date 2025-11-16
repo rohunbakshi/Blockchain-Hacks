@@ -4,8 +4,9 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Upload, FileText, User, ArrowRight } from 'lucide-react';
+import { Upload, FileText, User, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { parseResumeFile } from '../utils/resumeParser';
 
 export function ProfileSetupPage() {
   const { navigateTo, userData, setUserData } = useRouter();
@@ -16,6 +17,7 @@ export function ProfileSetupPage() {
   const [age, setAge] = useState('');
   const [lastFourSSN, setLastFourSSN] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [isParsingResume, setIsParsingResume] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
@@ -31,10 +33,174 @@ export function ProfileSetupPage() {
     }
   };
 
-  const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /**
+   * Check if a file is a resume (PDF, DOC, DOCX)
+   */
+  const isResumeFile = (file: File): boolean => {
+    const fileName = file.name.toLowerCase();
+    const fileType = file.type.toLowerCase();
+    
+    return (
+      fileName.endsWith('.pdf') ||
+      fileName.endsWith('.doc') ||
+      fileName.endsWith('.docx') ||
+      fileType === 'application/pdf' ||
+      fileType === 'application/msword' ||
+      fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
+  };
+
+  /**
+   * Auto-fill form fields with parsed resume data
+   * Always fills fields if data is available (overwrites existing values)
+   */
+  const applyParsedData = (parsed: any) => {
+    console.log('Applying parsed data to form:', parsed);
+    
+    let fieldsUpdated = 0;
+
+    // Fill first name if available
+    if (parsed.firstName) {
+      const cleanFirstName = parsed.firstName.trim();
+      if (cleanFirstName) {
+        setFirstName(cleanFirstName);
+        fieldsUpdated++;
+        console.log('Set firstName:', cleanFirstName);
+      }
+    }
+
+    // Fill last name if available
+    if (parsed.lastName) {
+      const cleanLastName = parsed.lastName.trim();
+      if (cleanLastName) {
+        setLastName(cleanLastName);
+        fieldsUpdated++;
+        console.log('Set lastName:', cleanLastName);
+      }
+    }
+
+    // If full name is available but firstName/lastName aren't, try to split
+    if (!parsed.firstName && !parsed.lastName && parsed.email) {
+      // Try to extract name from email
+      const emailName = parsed.email.split('@')[0];
+      const nameParts = emailName.split(/[._-]/);
+      if (nameParts.length >= 2) {
+        setFirstName(nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1));
+        setLastName(nameParts[nameParts.length - 1].charAt(0).toUpperCase() + nameParts[nameParts.length - 1].slice(1));
+        fieldsUpdated += 2;
+        console.log('Extracted name from email:', nameParts[0], nameParts[nameParts.length - 1]);
+      }
+    }
+
+    // Fill age if available
+    if (parsed.age) {
+      const cleanAge = parsed.age.toString().trim();
+      if (cleanAge) {
+        setAge(cleanAge);
+        fieldsUpdated++;
+        console.log('Set age:', cleanAge);
+      }
+    }
+
+    // Fill gender if available
+    if (parsed.gender) {
+      // Map common gender values to our select options
+      const genderMap: { [key: string]: string } = {
+        'male': 'male',
+        'm': 'male',
+        'man': 'male',
+        'female': 'female',
+        'f': 'female',
+        'woman': 'female',
+        'non-binary': 'non-binary',
+        'nonbinary': 'non-binary',
+        'nb': 'non-binary',
+      };
+      const normalizedGender = parsed.gender.toLowerCase().trim();
+      if (genderMap[normalizedGender]) {
+        setGender(genderMap[normalizedGender]);
+        fieldsUpdated++;
+        console.log('Set gender:', genderMap[normalizedGender]);
+      }
+    }
+
+    console.log(`Applied ${fieldsUpdated} fields from parsed resume data`);
+    
+    return fieldsUpdated;
+  };
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    
+    // Find resume files
+    const resumeFiles = files.filter(isResumeFile);
+    const otherFiles = files.filter(file => !isResumeFile(file));
+
+    // Add all files to uploaded list
     setUploadedFiles(prev => [...prev, ...files]);
-    toast.success(`${files.length} document(s) uploaded`);
+
+    // If there are resume files, parse them
+    if (resumeFiles.length > 0) {
+      setIsParsingResume(true);
+      toast.info(`Parsing ${resumeFiles.length} resume(s) with AI...`, {
+        position: 'top-right',
+      });
+
+      try {
+        // Parse the first resume file
+        const firstResume = resumeFiles[0];
+        console.log('Parsing resume file:', firstResume.name, firstResume.type);
+        
+        const parsed = await parseResumeFile(firstResume);
+        console.log('Resume parsed, received data:', parsed);
+
+        // Auto-fill form fields
+        const fieldsUpdated = applyParsedData(parsed);
+
+        // Store parsed education and work experience data in userData for later use
+        if (parsed.education || parsed.workExperience) {
+          setUserData({
+            education: parsed.education || [],
+            workExperience: parsed.workExperience || [],
+          });
+          console.log('Stored parsed resume data:', {
+            education: parsed.education?.length || 0,
+            workExperience: parsed.workExperience?.length || 0,
+          });
+        }
+
+        if (fieldsUpdated > 0) {
+          toast.success(`Resume parsed successfully! Auto-filled ${fieldsUpdated} field(s).`, {
+            position: 'top-right',
+            duration: 4000,
+          });
+        } else {
+          toast.warning('Resume parsed but no matching fields were found. Please fill the form manually.', {
+            position: 'top-right',
+            duration: 5000,
+          });
+        }
+      } catch (error: any) {
+        console.error('Resume parsing error:', error);
+        console.error('Error stack:', error.stack);
+        
+        // Show detailed error message
+        const errorMessage = error.message || 'Failed to parse resume';
+        toast.error(`Parsing failed: ${errorMessage}. Check console for details. You can still fill the form manually.`, {
+          position: 'top-right',
+          duration: 6000,
+        });
+      } finally {
+        setIsParsingResume(false);
+      }
+    } else {
+      // Non-resume files
+      if (otherFiles.length > 0) {
+        toast.success(`${otherFiles.length} document(s) uploaded`, {
+          position: 'top-right',
+        });
+      }
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -45,7 +211,7 @@ export function ProfileSetupPage() {
       return;
     }
 
-    // Save user data
+    // Save user data - preserve existing education and workExperience from resume parsing
     setUserData({
       firstName,
       lastName,
@@ -54,6 +220,16 @@ export function ProfileSetupPage() {
       lastFourSSN,
       profileImage,
       documents: uploadedFiles,
+      // Preserve parsed resume data (education and workExperience)
+      education: userData.education || [],
+      workExperience: userData.workExperience || [],
+    });
+
+    console.log('Profile saved with data:', {
+      firstName,
+      lastName,
+      education: userData.education?.length || 0,
+      workExperience: userData.workExperience?.length || 0,
     });
 
     toast.success('Profile created successfully!');
@@ -218,16 +394,42 @@ export function ProfileSetupPage() {
               <h2 className="text-2xl text-slate-900 mb-6">Upload Documents</h2>
               
               <div
-                onClick={() => documentInputRef.current?.click()}
-                className="border-3 border-dashed border-teal-300 rounded-3xl min-h-[400px] flex flex-col items-center justify-center cursor-pointer hover:bg-teal-50/50 hover:border-teal-400 transition-all p-8 group bg-gradient-to-br from-teal-50/30 to-cyan-50/30"
+                onClick={() => !isParsingResume && documentInputRef.current?.click()}
+                className={`border-3 border-dashed border-teal-300 rounded-3xl min-h-[400px] flex flex-col items-center justify-center transition-all p-8 group bg-gradient-to-br from-teal-50/30 to-cyan-50/30 ${
+                  isParsingResume 
+                    ? 'cursor-not-allowed opacity-75' 
+                    : 'cursor-pointer hover:bg-teal-50/50 hover:border-teal-400'
+                }`}
               >
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
-                  <Upload className="w-10 h-10 text-white" />
-                </div>
-                <p className="text-xl text-slate-900 mb-2">Upload Documents</p>
-                <p className="text-sm text-slate-600 text-center max-w-md">
-                  Click to upload resumes, transcripts, certificates, or other credentials
-                </p>
+                {isParsingResume ? (
+                  <>
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center mb-6 shadow-lg">
+                      <Loader2 className="w-10 h-10 text-white animate-spin" />
+                    </div>
+                    <p className="text-xl text-slate-900 mb-2 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-teal-600" />
+                      Parsing Resume with AI...
+                    </p>
+                    <p className="text-sm text-slate-600 text-center max-w-md">
+                      Extracting information from your resume. This may take a few moments.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
+                      <Upload className="w-10 h-10 text-white" />
+                    </div>
+                    <p className="text-xl text-slate-900 mb-2 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-teal-600" />
+                      Upload Documents
+                    </p>
+                    <p className="text-sm text-slate-600 text-center max-w-md">
+                      Click to upload resumes, transcripts, certificates, or other credentials.
+                      <br />
+                      <span className="text-teal-600 font-medium">Resumes will be automatically parsed with AI!</span>
+                    </p>
+                  </>
+                )}
               </div>
 
               <input
@@ -244,15 +446,31 @@ export function ProfileSetupPage() {
                 <div className="mt-6">
                   <h3 className="text-sm text-slate-600 mb-3">Uploaded Files:</h3>
                   <div className="space-y-2">
-                    {uploadedFiles.map((file, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl border border-teal-200/50"
-                      >
-                        <FileText className="w-5 h-5 text-teal-600" />
-                        <span className="text-sm text-slate-700">{file.name}</span>
-                      </div>
-                    ))}
+                    {uploadedFiles.map((file, index) => {
+                      const isResume = isResumeFile(file);
+                      return (
+                        <div
+                          key={index}
+                          className={`flex items-center gap-3 p-3 rounded-xl border ${
+                            isResume
+                              ? 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-200/50'
+                              : 'bg-gradient-to-r from-teal-50 to-cyan-50 border-teal-200/50'
+                          }`}
+                        >
+                          {isResume ? (
+                            <Sparkles className="w-5 h-5 text-cyan-600" />
+                          ) : (
+                            <FileText className="w-5 h-5 text-teal-600" />
+                          )}
+                          <span className="text-sm text-slate-700 flex-1">{file.name}</span>
+                          {isResume && (
+                            <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-1 rounded-full">
+                              AI Parsed
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
