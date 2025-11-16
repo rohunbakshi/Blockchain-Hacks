@@ -4,23 +4,47 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Upload, FileText, User, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { Upload, FileText, User, ArrowRight, Loader2, Sparkles, Eye, EyeOff, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { parseResumeFile } from '../utils/resumeParser';
 
 export function ProfileSetupPage() {
-  const { navigateTo, userData, setUserData } = useRouter();
+  const { navigateTo, userData, setUserData, registerUser } = useRouter();
   const [profileImage, setProfileImage] = useState<string>('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [gender, setGender] = useState('');
   const [age, setAge] = useState('');
   const [lastFourSSN, setLastFourSSN] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isParsingResume, setIsParsingResume] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper function to validate password
+  const isPasswordValid = (pwd: string, firstName: string, lastName: string): boolean => {
+    if (!pwd || pwd.length < 6) return false;
+    if (!/[A-Z]/.test(pwd)) return false;
+    if (!/[a-z]/.test(pwd)) return false;
+    if (!/[!@#$%^&*()+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd)) return false;
+    if (/[\s_]/.test(pwd)) return false;
+    
+    const firstNameLower = firstName.trim().toLowerCase();
+    const lastNameLower = lastName.trim().toLowerCase();
+    const passwordLower = pwd.toLowerCase();
+    
+    if (firstNameLower && passwordLower.includes(firstNameLower)) return false;
+    if (lastNameLower && passwordLower.includes(lastNameLower)) return false;
+    
+    return true;
+  };
 
   const handleProfileImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -121,6 +145,28 @@ export function ProfileSetupPage() {
         setGender(genderMap[normalizedGender]);
         fieldsUpdated++;
         console.log('Set gender:', genderMap[normalizedGender]);
+      }
+    }
+
+    // Fill email if available
+    if (parsed.email) {
+      const cleanEmail = parsed.email.trim().toLowerCase();
+      if (cleanEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        setEmail(cleanEmail);
+        fieldsUpdated++;
+        console.log('Set email:', cleanEmail);
+      }
+    }
+
+    // Fill phone if available
+    if (parsed.phone) {
+      const cleanPhone = parsed.phone.trim();
+      // Remove common formatting to store clean version
+      const digitsOnly = cleanPhone.replace(/\D/g, '');
+      if (digitsOnly.length >= 10) {
+        setPhone(cleanPhone);
+        fieldsUpdated++;
+        console.log('Set phone:', cleanPhone);
       }
     }
 
@@ -246,6 +292,98 @@ export function ProfileSetupPage() {
       return;
     }
 
+    // Validate email
+    if (!email || !email.trim()) {
+      toast.error('Email is required');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    // Validate phone
+    if (!phone || !phone.trim()) {
+      toast.error('Phone number is required');
+      return;
+    }
+
+    // Phone validation: accepts formats like (123) 456-7890, 123-456-7890, 123.456.7890, 1234567890, etc.
+    const phoneRegex = /^[\d\s\-\(\)\.\+]+$/;
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (!phoneRegex.test(phone.trim()) || phoneDigits.length < 10 || phoneDigits.length > 15) {
+      toast.error('Please enter a valid phone number');
+      return;
+    }
+
+    // Validate password
+    if (!password || !password.trim()) {
+      toast.error('Password is required');
+      return;
+    }
+
+    const passwordErrors: string[] = [];
+
+    // Check length
+    if (password.length < 6) {
+      passwordErrors.push('at least 6 characters long');
+    }
+
+    // Check for uppercase
+    if (!/[A-Z]/.test(password)) {
+      passwordErrors.push('one uppercase letter');
+    }
+
+    // Check for lowercase
+    if (!/[a-z]/.test(password)) {
+      passwordErrors.push('one lowercase letter');
+    }
+
+    // Check for special character (excluding underscore since it's not allowed)
+    if (!/[!@#$%^&*()+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      passwordErrors.push('one special character');
+    }
+
+    // Check for spaces, underscores, and similar
+    if (/[\s_]/.test(password)) {
+      passwordErrors.push('no spaces or underscores');
+    }
+
+    // Check if password contains first name or last name (case-insensitive)
+    const firstNameLower = firstName.trim().toLowerCase();
+    const lastNameLower = lastName.trim().toLowerCase();
+    const passwordLower = password.toLowerCase();
+
+    if (firstNameLower && passwordLower.includes(firstNameLower)) {
+      passwordErrors.push('cannot contain your first name');
+    }
+
+    if (lastNameLower && passwordLower.includes(lastNameLower)) {
+      passwordErrors.push('cannot contain your last name');
+    }
+
+    if (passwordErrors.length > 0) {
+      toast.error(`Password must have: ${passwordErrors.join(', ')}`);
+      return;
+    }
+
+    // Validate confirm password
+    if (!confirmPassword || !confirmPassword.trim()) {
+      toast.error('Please confirm your password');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    // Register the email address
+    const emailLower = email.trim().toLowerCase();
+    registerUser(emailLower);
+    
     // Save user data - preserve existing education and workExperience from resume parsing
     setUserData({
       firstName: firstName.trim(),
@@ -255,6 +393,9 @@ export function ProfileSetupPage() {
       lastFourSSN: lastFourSSN.trim(),
       profileImage,
       documents: uploadedFiles,
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+      password: password.trim(),
       // Preserve parsed resume data (education and workExperience)
       education: userData.education || [],
       workExperience: userData.workExperience || [],
@@ -263,6 +404,7 @@ export function ProfileSetupPage() {
     console.log('Profile saved with data:', {
       firstName,
       lastName,
+      email: email.trim().toLowerCase(),
       education: userData.education?.length || 0,
       workExperience: userData.workExperience?.length || 0,
     });
@@ -450,16 +592,191 @@ export function ProfileSetupPage() {
                   </div>
                 </div>
 
+                {/* Email */}
+                <div>
+                  <Label htmlFor="email" className="text-teal-700 mb-2 block">
+                    Email <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your.email@example.com"
+                    className={`border-2 rounded-xl bg-white/50 backdrop-blur-sm h-12 ${
+                      !email ? 'border-red-300 focus:border-red-500' : 'border-teal-200/50 focus:border-teal-500'
+                    }`}
+                    required
+                  />
+                  {email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (
+                    <p className="text-xs text-red-500 mt-1">Please enter a valid email address</p>
+                  )}
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <Label htmlFor="phone" className="text-teal-700 mb-2 block">
+                    Phone Number <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => {
+                      // Allow digits, spaces, dashes, parentheses, dots, and plus sign
+                      const value = e.target.value.replace(/[^\d\s\-\(\)\.\+]/g, '');
+                      setPhone(value);
+                    }}
+                    placeholder="(123) 456-7890"
+                    className={`border-2 rounded-xl bg-white/50 backdrop-blur-sm h-12 ${
+                      !phone ? 'border-red-300 focus:border-red-500' : 'border-teal-200/50 focus:border-teal-500'
+                    }`}
+                    required
+                  />
+                  {phone && phone.replace(/\D/g, '').length < 10 && (
+                    <p className="text-xs text-red-500 mt-1">Please enter a valid phone number (at least 10 digits)</p>
+                  )}
+                </div>
+
+                {/* Password */}
+                <div>
+                  <Label htmlFor="password" className="text-teal-700 mb-2 block">
+                    Password <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => {
+                        // Prevent spaces and underscores
+                        const value = e.target.value.replace(/[\s_]/g, '');
+                        setPassword(value);
+                      }}
+                      placeholder="Enter password"
+                      className={`border-2 rounded-xl bg-white/50 backdrop-blur-sm h-12 pr-14 ${
+                        !password || !isPasswordValid(password, firstName, lastName)
+                          ? 'border-red-300 focus:border-red-500' 
+                          : 'border-teal-200/50 focus:border-teal-500'
+                      }`}
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1 z-10"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-5 h-5" />
+                      ) : (
+                        <Eye className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                  {password && (
+                    <div className="mt-1 space-y-1">
+                      {password.length < 6 && (
+                        <p className="text-xs text-red-500">✗ At least 6 characters</p>
+                      )}
+                      {!/[A-Z]/.test(password) && (
+                        <p className="text-xs text-red-500">✗ One uppercase letter</p>
+                      )}
+                      {!/[a-z]/.test(password) && (
+                        <p className="text-xs text-red-500">✗ One lowercase letter</p>
+                      )}
+                      {!/[!@#$%^&*()+\-=\[\]{};':"\\|,.<>\/?]/.test(password) && (
+                        <p className="text-xs text-red-500">✗ One special character</p>
+                      )}
+                      {/[\s_]/.test(password) && (
+                        <p className="text-xs text-red-500">✗ No spaces or underscores</p>
+                      )}
+                      {firstName.trim() && password.toLowerCase().includes(firstName.trim().toLowerCase()) && (
+                        <p className="text-xs text-red-500">✗ Cannot contain first name</p>
+                      )}
+                      {lastName.trim() && password.toLowerCase().includes(lastName.trim().toLowerCase()) && (
+                        <p className="text-xs text-red-500">✗ Cannot contain last name</p>
+                      )}
+                      {isPasswordValid(password, firstName, lastName) && (
+                        <p className="text-xs text-green-600">✓ Password meets all requirements</p>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-500 mt-2">
+                    Requirements: 6+ characters, 1 uppercase, 1 lowercase, 1 special character, no spaces/underscores, cannot contain your name
+                  </p>
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <Label htmlFor="confirmPassword" className="text-teal-700 mb-2 block">
+                    Confirm Password <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm password"
+                      className={`border-2 rounded-xl bg-white/50 backdrop-blur-sm h-12 pr-14 ${
+                        !confirmPassword 
+                          ? 'border-red-300 focus:border-red-500' 
+                          : password !== confirmPassword
+                          ? 'border-red-300 focus:border-red-500'
+                          : 'border-teal-200/50 focus:border-teal-500'
+                      }`}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1 z-10"
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="w-5 h-5" />
+                      ) : (
+                        <Eye className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                  {confirmPassword && password !== confirmPassword && (
+                    <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+                  )}
+                </div>
+
                 {/* Wallet ID */}
                 <div>
                   <Label className="text-teal-700 mb-2 block">
                     Wallet ID <span className="text-sm text-slate-500">(Auto-filled)</span>
                   </Label>
-                  <Input
-                    value={userData.walletAddress || ''}
-                    disabled
-                    className="border-2 border-slate-200 rounded-xl bg-slate-50 h-12"
-                  />
+                  <div className="relative">
+                    <Input
+                      value={userData.walletAddress || ''}
+                      disabled
+                      className="border-2 border-slate-200 rounded-xl bg-slate-50 h-12 pr-12"
+                    />
+                    {userData.walletAddress && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(userData.walletAddress || '');
+                            toast.success('Wallet ID copied to clipboard!');
+                          } catch (error) {
+                            console.error('Failed to copy:', error);
+                            toast.error('Failed to copy to clipboard');
+                          }
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-slate-200 rounded-lg transition-colors"
+                        type="button"
+                        title="Copy to clipboard"
+                      >
+                        <Copy className="w-4 h-4 text-slate-600" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

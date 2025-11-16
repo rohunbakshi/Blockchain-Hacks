@@ -3,7 +3,10 @@ import { Button } from '../components/ui/button';
 import { Shield, Zap, Award } from 'lucide-react';
 
 export function LandingPage() {
-  const { navigateTo } = useRouter();
+  const { navigateTo, userData } = useRouter();
+  
+  // Check if user is logged in (has wallet address)
+  const isLoggedIn = !!userData.walletAddress;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50 to-teal-50 flex flex-col relative overflow-hidden">
@@ -19,12 +22,22 @@ export function LandingPage() {
         <div className="bg-white/80 backdrop-blur-md border border-teal-200/50 px-6 py-3 rounded-2xl shadow-lg shadow-teal-500/10 hover:shadow-xl hover:shadow-teal-500/20 transition-all">
           <span className="text-xl bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">CredentialHub</span>
         </div>
-        <button
-          onClick={() => navigateTo('employer-login')}
-          className="bg-white/80 backdrop-blur-md border border-cyan-200/50 px-6 py-3 rounded-2xl hover:bg-white hover:shadow-lg hover:shadow-cyan-500/10 transition-all"
-        >
-          Employer/University Login
-        </button>
+        <div className="flex items-center gap-3">
+          {!isLoggedIn && (
+            <button
+              onClick={() => navigateTo('user-login')}
+              className="bg-white/80 backdrop-blur-md border border-teal-200/50 px-6 py-3 rounded-2xl hover:bg-white hover:shadow-lg hover:shadow-teal-500/10 transition-all text-sm font-medium text-teal-700"
+            >
+              User Login
+            </button>
+          )}
+          <button
+            onClick={() => navigateTo('employer-login')}
+            className="bg-white/80 backdrop-blur-md border border-cyan-200/50 px-6 py-3 rounded-2xl hover:bg-white hover:shadow-lg hover:shadow-cyan-500/10 transition-all text-sm font-medium text-cyan-700"
+          >
+            Employer/University Login
+          </button>
+        </div>
       </header>
 
       {/* Main Content */}
@@ -50,14 +63,27 @@ export function LandingPage() {
         </div>
 
         <div className="flex flex-col items-center gap-6 mb-12">
-          <Button
-            onClick={() => navigateTo('wallet-connect')}
-            className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white px-12 py-7 text-xl rounded-2xl shadow-xl shadow-teal-500/30 hover:shadow-2xl hover:shadow-teal-500/40 hover:-translate-y-1 transition-all duration-300"
-          >
-            Get Started
-          </Button>
-          
-          <p className="text-sm text-slate-500">Connect your wallet to begin</p>
+          {isLoggedIn ? (
+            <>
+              <Button
+                onClick={() => navigateTo('dashboard')}
+                className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white px-12 py-7 text-xl rounded-2xl shadow-xl shadow-teal-500/30 hover:shadow-2xl hover:shadow-teal-500/40 hover:-translate-y-1 transition-all duration-300"
+              >
+                Go to Dashboard
+              </Button>
+              <p className="text-sm text-slate-500">Welcome back{userData.firstName ? `, ${userData.firstName}` : ''}!</p>
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={() => navigateTo('wallet-connect')}
+                className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white px-12 py-7 text-xl rounded-2xl shadow-xl shadow-teal-500/30 hover:shadow-2xl hover:shadow-teal-500/40 hover:-translate-y-1 transition-all duration-300"
+              >
+                Get Started
+              </Button>
+              <p className="text-sm text-slate-500">Connect your wallet to begin</p>
+            </>
+          )}
         </div>
 
         {/* Feature Cards */}

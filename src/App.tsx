@@ -7,6 +7,9 @@ import { EmployerLoginPage } from './pages/EmployerLoginPage';
 import { EmployerDashboardPage } from './pages/EmployerDashboardPage';
 import { InstitutionDashboardPage } from './pages/InstitutionDashboardPage';
 import { IDVerificationPage } from './pages/IDVerificationPage';
+import { UserLoginPage } from './pages/UserLoginPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { Toaster } from 'sonner';
 
 function AppContent() {
@@ -30,6 +33,12 @@ function AppContent() {
         return <InstitutionDashboardPage />;
       case 'id-verification':
         return <IDVerificationPage />;
+      case 'user-login':
+        return <UserLoginPage />;
+      case 'forgot-password':
+        return <ForgotPasswordPage />;
+      case 'reset-password':
+        return <ResetPasswordPage />;
       default:
         return <LandingPage />;
     }

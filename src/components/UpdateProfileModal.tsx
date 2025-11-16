@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { toast } from 'sonner';
-import { updateUserProfile, getUserProfile } from '../services/api';
+import { useRouter } from './Router';
 
 interface UpdateProfileModalProps {
   isOpen: boolean;
@@ -18,6 +18,19 @@ interface UpdateProfileModalProps {
     lastFourSSN?: string;
     profileImage?: string;
     walletAddress?: string;
+    documents?: File[];
+    education?: Array<{
+      institution: string;
+      degree: string;
+      field: string;
+      year?: string;
+    }>;
+    workExperience?: Array<{
+      company: string;
+      position: string;
+      duration: string;
+      description?: string;
+    }>;
   };
   onUpdateSuccess: () => void;
 }
@@ -28,6 +41,7 @@ export function UpdateProfileModal({
   currentUserData,
   onUpdateSuccess,
 }: UpdateProfileModalProps) {
+  const { setUserData } = useRouter();
   const [profileImage, setProfileImage] = useState<string>(currentUserData.profileImage || '');
   const [firstName, setFirstName] = useState(currentUserData.firstName || '');
   const [lastName, setLastName] = useState(currentUserData.lastName || '');
@@ -43,27 +57,15 @@ export function UpdateProfileModal({
   useEffect(() => {
     if (isOpen) {
       // Load current profile data when modal opens
-      loadUserProfile();
+      setFirstName(currentUserData.firstName || '');
+      setLastName(currentUserData.lastName || '');
+      setGender(currentUserData.gender || '');
+      setAge(currentUserData.age || '');
+      setLastFourSSN(currentUserData.lastFourSSN || '');
+      setProfileImage(currentUserData.profileImage || '');
+      setUploadedFiles([]); // Reset uploaded files when modal opens
     }
   }, [isOpen, currentUserData]);
-
-  const loadUserProfile = async () => {
-    try {
-      if (currentUserData.walletAddress) {
-        const profile = await getUserProfile(currentUserData.walletAddress);
-        if (profile) {
-          setFirstName(profile.firstName || '');
-          setLastName(profile.lastName || '');
-          setGender(profile.gender || '');
-          setAge(profile.age || '');
-          setLastFourSSN(profile.lastFourSSN || '');
-          setProfileImage(profile.profileImage || '');
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load profile:', error);
-    }
-  };
 
   const handleProfileImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -96,45 +98,69 @@ export function UpdateProfileModal({
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!firstName || !lastName || !age) {
-      toast.error('Please fill in all required fields');
+    // Validate all required fields
+    if (!firstName || !firstName.trim()) {
+      toast.error('First name is required');
       return;
     }
 
-    if (!currentUserData.walletAddress) {
-      toast.error('Wallet address is required');
+    if (!lastName || !lastName.trim()) {
+      toast.error('Last name is required');
       return;
+    }
+
+    if (!age || !age.trim()) {
+      toast.error('Age is required');
+      return;
+    }
+
+    // Validate age is a valid positive number
+    const ageNum = parseInt(age, 10);
+    if (isNaN(ageNum) || ageNum <= 0 || ageNum > 150) {
+      toast.error('Please enter a valid age (1-150)');
+      return;
+    }
+
+    // Validate last 4 SSN if provided
+    if (lastFourSSN && lastFourSSN.trim()) {
+      const ssnRegex = /^\d{4}$/;
+      if (!ssnRegex.test(lastFourSSN.trim())) {
+        toast.error('Last 4 SSN must be exactly 4 digits');
+        return;
+      }
     }
 
     setIsLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append('walletAddress', currentUserData.walletAddress);
-      formData.append('firstName', firstName);
-      formData.append('lastName', lastName);
-      formData.append('gender', gender);
-      formData.append('age', age);
-      formData.append('lastFourSSN', lastFourSSN);
-      
-      // Handle profile image - if it's a base64 string, send as-is
-      if (profileImage && profileImage.startsWith('data:image')) {
-        // Base64 image string - backend will handle conversion
-        formData.append('profileImage', profileImage);
-      }
-
-      uploadedFiles.forEach((file) => {
-        formData.append('documents', file);
+      // Update user data using router context (same as ProfileSetupPage)
+      setUserData({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        gender: gender || currentUserData.gender,
+        age: ageNum.toString(),
+        lastFourSSN: lastFourSSN.trim() || currentUserData.lastFourSSN,
+        profileImage: profileImage || currentUserData.profileImage,
+        documents: uploadedFiles.length > 0 ? uploadedFiles : currentUserData.documents,
+        // Preserve existing education and work experience data
+        education: currentUserData.education || [],
+        workExperience: currentUserData.workExperience || [],
       });
 
-      await updateUserProfile(formData);
+      console.log('Profile updated successfully:', {
+        firstName,
+        lastName,
+        age: ageNum,
+      });
+
       toast.success('Profile updated successfully!');
       onUpdateSuccess();
       onClose();
     } catch (error: any) {
+      console.error('Error updating profile:', error);
       toast.error(error.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
@@ -198,14 +224,16 @@ export function UpdateProfileModal({
               {/* Form Fields */}
               <div>
                 <Label htmlFor="firstName" className="text-teal-700 mb-2 block">
-                  First Name *
+                  First Name <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="firstName"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="Bob"
-                  className="border-2 border-teal-200/50 focus:border-teal-500 rounded-xl h-12"
+                  className={`border-2 rounded-xl h-12 ${
+                    !firstName ? 'border-red-300 focus:border-red-500' : 'border-teal-200/50 focus:border-teal-500'
+                  }`}
                   required
                   disabled={isLoading}
                 />
@@ -213,14 +241,16 @@ export function UpdateProfileModal({
 
               <div>
                 <Label htmlFor="lastName" className="text-teal-700 mb-2 block">
-                  Last Name *
+                  Last Name <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="lastName"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Jones"
-                  className="border-2 border-teal-200/50 focus:border-teal-500 rounded-xl h-12"
+                  className={`border-2 rounded-xl h-12 ${
+                    !lastName ? 'border-red-300 focus:border-red-500' : 'border-teal-200/50 focus:border-teal-500'
+                  }`}
                   required
                   disabled={isLoading}
                 />
@@ -228,10 +258,12 @@ export function UpdateProfileModal({
 
               <div>
                 <Label htmlFor="gender" className="text-teal-700 mb-2 block">
-                  Gender
+                  Gender <span className="text-red-500">*</span>
                 </Label>
-                <Select value={gender} onValueChange={setGender} disabled={isLoading}>
-                  <SelectTrigger className="border-2 border-teal-200/50 focus:ring-teal-500 rounded-xl h-12">
+                <Select value={gender} onValueChange={setGender} required disabled={isLoading}>
+                  <SelectTrigger className={`border-2 rounded-xl h-12 ${
+                    !gender ? 'border-red-300 focus:border-red-500' : 'border-teal-200/50 focus:border-teal-500'
+                  }`}>
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -241,37 +273,71 @@ export function UpdateProfileModal({
                     <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                   </SelectContent>
                 </Select>
+                {!gender && (
+                  <p className="text-xs text-red-500 mt-1">Gender selection is required</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="age" className="text-teal-700 mb-2 block">
-                    Age *
+                    Age <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="age"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={age}
-                    onChange={(e) => setAge(e.target.value)}
-                    className="border-2 border-teal-200/50 focus:border-teal-500 rounded-xl h-12"
+                    onChange={(e) => {
+                      // Only allow digits
+                      const value = e.target.value.replace(/\D/g, '');
+                      setAge(value);
+                    }}
+                    className={`border-2 rounded-xl h-12 ${
+                      !age ? 'border-red-300 focus:border-red-500' : 'border-teal-200/50 focus:border-teal-500'
+                    }`}
+                    placeholder="25"
                     required
                     disabled={isLoading}
+                    min="1"
+                    max="150"
                   />
+                  {age && (isNaN(parseInt(age, 10)) || parseInt(age, 10) <= 0 || parseInt(age, 10) > 150) && (
+                    <p className="text-xs text-red-500 mt-1">Please enter a valid age (1-150)</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="ssn" className="text-teal-700 mb-2 block">
-                    Last 4 SSN
+                    Last 4 SSN <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="ssn"
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     maxLength={4}
                     value={lastFourSSN}
-                    onChange={(e) => setLastFourSSN(e.target.value.replace(/\D/g, ''))}
-                    className="border-2 border-teal-200/50 focus:border-teal-500 rounded-xl h-12"
-                    placeholder="****"
+                    onChange={(e) => {
+                      // Only allow digits, limit to 4
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setLastFourSSN(value);
+                    }}
+                    className={`border-2 rounded-xl h-12 ${
+                      !lastFourSSN || lastFourSSN.length !== 4 
+                        ? 'border-red-300 focus:border-red-500' 
+                        : 'border-teal-200/50 focus:border-teal-500'
+                    }`}
+                    placeholder="1234"
+                    required
                     disabled={isLoading}
                   />
+                  {lastFourSSN && lastFourSSN.length !== 4 && (
+                    <p className="text-xs text-red-500 mt-1">Must be exactly 4 digits</p>
+                  )}
+                  {!lastFourSSN && (
+                    <p className="text-xs text-red-500 mt-1">Last 4 SSN is required</p>
+                  )}
                 </div>
               </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, Settings, User, ShieldCheck, Briefcase, Share2, CheckCircle, Clock, X, Send, Search, Building2 } from 'lucide-react';
+import { Bell, Settings, User, ShieldCheck, Briefcase, Share2, CheckCircle, Clock, X, Send, Search, Building2, LogOut } from 'lucide-react';
 import { useRouter } from '../components/Router';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -7,6 +7,13 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 import { UpdateProfileModal } from '../components/UpdateProfileModal';
 import { toast } from 'sonner';
 
@@ -26,13 +33,34 @@ const mockJobMatches = [
 ];
 
 export function UserHomePage() {
-  const { userData } = useRouter();
+  const { userData, navigateTo, logout } = useRouter();
+  // Initialize verification queue as empty - items are added when user requests verification
+  // Only add default verified request if user is logging in (not signing up)
   const [verificationQueue, setVerificationQueue] = useState<VerificationRequest[]>([]);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [showJobMatchesModal, setShowJobMatchesModal] = useState(false);
   const [showShareResumeModal, setShowShareResumeModal] = useState(false);
   const [showUpdateProfileModal, setShowUpdateProfileModal] = useState(false);
-  
+
+  // Check if user is logging in (vs signing up) and add default verified request
+  useEffect(() => {
+    const isLogin = sessionStorage.getItem('credentialHub_isLogin');
+    if (isLogin === 'true') {
+      // User is logging in, add default verified request
+      setVerificationQueue([
+        {
+          id: 'default-verified',
+          work: 'B.S. in Computer Science',
+          time: '1 minute ago',
+          status: 'verified'
+        }
+      ]);
+      // Clear the flag after using it
+      sessionStorage.removeItem('credentialHub_isLogin');
+    }
+    // If isLogin is not 'true', user is signing up, so queue stays empty
+  }, []);
+
   // Verification Modal State
   const [verificationType, setVerificationType] = useState('');
   const [verificationEntity, setVerificationEntity] = useState('');
@@ -286,10 +314,9 @@ export function UserHomePage() {
   };
 
   const handleUpdateProfileSuccess = () => {
-    // Refresh user data after successful update
-    // In a real app, you'd fetch the updated profile from the backend
+    // Profile is already updated via setUserData in UpdateProfileModal
+    // Just close modal and show success - no need to reload page
     toast.success('Profile updated successfully!');
-    window.location.reload(); // Simple refresh - in production, fetch updated data
   };
 
   return (
@@ -313,9 +340,25 @@ export function UserHomePage() {
             <Bell className="w-5 h-5 text-slate-700" />
             <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full"></span>
           </button>
-          <button className="p-3 hover:bg-teal-50 rounded-xl transition-all">
-            <Settings className="w-5 h-5 text-slate-700" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-3 hover:bg-teal-50 rounded-xl transition-all">
+                <Settings className="w-5 h-5 text-slate-700" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 bg-white border border-teal-200/50 rounded-xl shadow-lg">
+              <DropdownMenuItem 
+                onClick={() => {
+                  logout();
+                  toast.success('Logged out successfully');
+                }}
+                className="flex items-center gap-2 cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50 focus:text-red-700 focus:bg-red-50 rounded-lg"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Log Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button className="p-3 hover:bg-teal-50 rounded-xl transition-all">
             <User className="w-5 h-5 text-slate-700" />
           </button>
