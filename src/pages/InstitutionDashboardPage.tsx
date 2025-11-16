@@ -34,7 +34,7 @@ export function InstitutionDashboardPage() {
     }
   };
 
-  const handleRejectRequest = (requestId: string) => {
+  const handleRejectRequest = (_requestId: string) => {
     toast.error('Request rejected');
   };
 

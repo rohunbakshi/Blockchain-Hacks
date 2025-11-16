@@ -2,7 +2,6 @@ import { RouterProvider, useRouter } from './components/Router';
 import { LandingPage } from './pages/LandingPage';
 import { WalletConnectPage } from './pages/WalletConnectPage';
 import { ProfileSetupPage } from './pages/ProfileSetupPage';
-import { DashboardPage } from './pages/DashboardPage';
 import { UserHomePage } from './pages/UserHomePage';
 import { EmployerLoginPage } from './pages/EmployerLoginPage';
 import { EmployerDashboardPage } from './pages/EmployerDashboardPage';

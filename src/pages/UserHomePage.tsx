@@ -7,6 +7,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { UpdateProfileModal } from '../components/UpdateProfileModal';
 import { toast } from 'sonner';
 
 interface VerificationRequest {
@@ -25,11 +26,12 @@ const mockJobMatches = [
 ];
 
 export function UserHomePage() {
-  const { userData, navigateTo, setUserData } = useRouter();
+  const { userData } = useRouter();
   const [verificationQueue, setVerificationQueue] = useState<VerificationRequest[]>([]);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [showJobMatchesModal, setShowJobMatchesModal] = useState(false);
   const [showShareResumeModal, setShowShareResumeModal] = useState(false);
+  const [showUpdateProfileModal, setShowUpdateProfileModal] = useState(false);
   
   // Verification Modal State
   const [verificationType, setVerificationType] = useState('');
@@ -259,6 +261,13 @@ export function UserHomePage() {
     setShareMessage('');
   };
 
+  const handleUpdateProfileSuccess = () => {
+    // Refresh user data after successful update
+    // In a real app, you'd fetch the updated profile from the backend
+    toast.success('Profile updated successfully!');
+    window.location.reload(); // Simple refresh - in production, fetch updated data
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50 to-teal-50 relative overflow-hidden">
       {/* Decorative Background */}
@@ -332,7 +341,10 @@ export function UserHomePage() {
                   <div className="h-1.5 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full w-3/4"></div>
                 </div>
 
-                <Button className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white rounded-xl">
+                <Button 
+                  className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white rounded-xl"
+                  onClick={() => setShowUpdateProfileModal(true)}
+                >
                   Update Profile
                 </Button>
               </div>
@@ -655,6 +667,14 @@ export function UserHomePage() {
           </div>
         </div>
       )}
+
+      {/* Update Profile Modal */}
+      <UpdateProfileModal
+        isOpen={showUpdateProfileModal}
+        onClose={() => setShowUpdateProfileModal(false)}
+        currentUserData={userData}
+        onUpdateSuccess={handleUpdateProfileSuccess}
+      />
     </div>
   );
 }

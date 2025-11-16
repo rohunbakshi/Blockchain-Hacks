@@ -31,3 +31,7 @@ build
 .env
 .env.local
 .env.*.local
+
+# Server data
+server/data/
+server/node_modules/

@@ -135,7 +135,7 @@ export async function extractTextFromDOC(file: File): Promise<string> {
  * Extract text from image file (basic OCR placeholder)
  * Note: For production, you'd want to use a proper OCR service like Tesseract.js or cloud OCR
  */
-export async function extractTextFromImage(file: File): Promise<string> {
+export async function extractTextFromImage(_file: File): Promise<string> {
   // For now, return empty string
   // In production, implement OCR using Tesseract.js or cloud service
   return '';
@@ -171,7 +171,7 @@ export async function extractTextFromResume(file: File): Promise<string> {
 export async function parseResumeWithAI(resumeText: string): Promise<ParsedResume> {
   try {
     // Check if OpenAI API key is available
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    const apiKey = (import.meta.env?.VITE_OPENAI_API_KEY as string | undefined);
     
     console.log('Checking for OpenAI API key...', apiKey ? 'Found' : 'Not found');
     

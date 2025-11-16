@@ -15,6 +15,7 @@ interface ProfileCardProps {
   badges: VerificationBadge[];
   summary: string;
   onUpdateProfile: () => void;
+  onBadgeClick?: (badge: VerificationBadge) => void;
 }
 
 export function ProfileCard({
@@ -24,6 +25,7 @@ export function ProfileCard({
   badges,
   summary,
   onUpdateProfile,
+  onBadgeClick,
 }: ProfileCardProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow duration-200">
@@ -66,12 +68,16 @@ export function ProfileCard({
               badge.type === 'education'
                 ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                 : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-            } border-0`}
+            } border-0 cursor-pointer transition-all`}
+            onClick={() => onBadgeClick?.(badge)}
           >
             <span className="mr-1">✓</span>
             {badge.label}
           </Badge>
         ))}
+        {badges.length === 0 && (
+          <p className="text-xs text-gray-400 italic">Click badges to add credentials</p>
+        )}
       </div>
 
       {/* Summary */}
