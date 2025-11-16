@@ -206,18 +206,53 @@ export function ProfileSetupPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!firstName || !lastName || !age) {
-      toast.error('Please fill in all required fields');
+    // Validate all required fields
+    if (!firstName || !firstName.trim()) {
+      toast.error('First name is required');
+      return;
+    }
+
+    if (!lastName || !lastName.trim()) {
+      toast.error('Last name is required');
+      return;
+    }
+
+    if (!age || !age.trim()) {
+      toast.error('Age is required');
+      return;
+    }
+
+    // Validate age is a valid positive number
+    const ageNum = parseInt(age, 10);
+    if (isNaN(ageNum) || ageNum <= 0 || ageNum > 150) {
+      toast.error('Please enter a valid age (1-150)');
+      return;
+    }
+
+    if (!gender || !gender.trim()) {
+      toast.error('Gender is required');
+      return;
+    }
+
+    if (!lastFourSSN || !lastFourSSN.trim()) {
+      toast.error('Last 4 digits of SSN is required');
+      return;
+    }
+
+    // Validate last 4 SSN is exactly 4 digits
+    const ssnRegex = /^\d{4}$/;
+    if (!ssnRegex.test(lastFourSSN)) {
+      toast.error('Last 4 SSN must be exactly 4 digits');
       return;
     }
 
     // Save user data - preserve existing education and workExperience from resume parsing
     setUserData({
-      firstName,
-      lastName,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
       gender,
-      age,
-      lastFourSSN,
+      age: ageNum.toString(),
+      lastFourSSN: lastFourSSN.trim(),
       profileImage,
       documents: uploadedFiles,
       // Preserve parsed resume data (education and workExperience)
@@ -299,14 +334,16 @@ export function ProfileSetupPage() {
                 {/* First Name */}
                 <div>
                   <Label htmlFor="firstName" className="text-teal-700 mb-2 block">
-                    First Name
+                    First Name <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="firstName"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="Bob"
-                    className="border-2 border-teal-200/50 focus:border-teal-500 rounded-xl bg-white/50 backdrop-blur-sm h-12"
+                    className={`border-2 rounded-xl bg-white/50 backdrop-blur-sm h-12 ${
+                      !firstName ? 'border-red-300 focus:border-red-500' : 'border-teal-200/50 focus:border-teal-500'
+                    }`}
                     required
                   />
                 </div>
@@ -314,14 +351,16 @@ export function ProfileSetupPage() {
                 {/* Last Name */}
                 <div>
                   <Label htmlFor="lastName" className="text-teal-700 mb-2 block">
-                    Last Name
+                    Last Name <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="lastName"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Jones"
-                    className="border-2 border-teal-200/50 focus:border-teal-500 rounded-xl bg-white/50 backdrop-blur-sm h-12"
+                    className={`border-2 rounded-xl bg-white/50 backdrop-blur-sm h-12 ${
+                      !lastName ? 'border-red-300 focus:border-red-500' : 'border-teal-200/50 focus:border-teal-500'
+                    }`}
                     required
                   />
                 </div>
@@ -329,10 +368,12 @@ export function ProfileSetupPage() {
                 {/* Gender */}
                 <div>
                   <Label htmlFor="gender" className="text-teal-700 mb-2 block">
-                    Gender
+                    Gender <span className="text-red-500">*</span>
                   </Label>
-                  <Select value={gender} onValueChange={setGender}>
-                    <SelectTrigger className="border-2 border-teal-200/50 focus:ring-teal-500 rounded-xl bg-white/50 backdrop-blur-sm h-12">
+                  <Select value={gender} onValueChange={setGender} required>
+                    <SelectTrigger className={`border-2 rounded-xl bg-white/50 backdrop-blur-sm h-12 ${
+                      !gender ? 'border-red-300 focus:border-red-500' : 'border-teal-200/50 focus:border-teal-500'
+                    }`}>
                       <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
                     <SelectContent>
@@ -342,36 +383,70 @@ export function ProfileSetupPage() {
                       <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                     </SelectContent>
                   </Select>
+                  {!gender && (
+                    <p className="text-xs text-red-500 mt-1">Gender selection is required</p>
+                  )}
                 </div>
 
                 {/* Age and Last 4 SSN */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="age" className="text-teal-700 mb-2 block">
-                      Age
+                      Age <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       id="age"
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={age}
-                      onChange={(e) => setAge(e.target.value)}
-                      className="border-2 border-teal-200/50 focus:border-teal-500 rounded-xl bg-white/50 backdrop-blur-sm h-12"
+                      onChange={(e) => {
+                        // Only allow digits
+                        const value = e.target.value.replace(/\D/g, '');
+                        setAge(value);
+                      }}
+                      className={`border-2 rounded-xl bg-white/50 backdrop-blur-sm h-12 ${
+                        !age ? 'border-red-300 focus:border-red-500' : 'border-teal-200/50 focus:border-teal-500'
+                      }`}
+                      placeholder="25"
                       required
+                      min="1"
+                      max="150"
                     />
+                    {age && (isNaN(parseInt(age, 10)) || parseInt(age, 10) <= 0 || parseInt(age, 10) > 150) && (
+                      <p className="text-xs text-red-500 mt-1">Please enter a valid age (1-150)</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="ssn" className="text-teal-700 mb-2 block">
-                      Last 4 SSN
+                      Last 4 SSN <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       id="ssn"
                       type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       maxLength={4}
                       value={lastFourSSN}
-                      onChange={(e) => setLastFourSSN(e.target.value.replace(/\D/g, ''))}
-                      className="border-2 border-teal-200/50 focus:border-teal-500 rounded-xl bg-white/50 backdrop-blur-sm h-12"
-                      placeholder="****"
+                      onChange={(e) => {
+                        // Only allow digits, limit to 4
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        setLastFourSSN(value);
+                      }}
+                      className={`border-2 rounded-xl bg-white/50 backdrop-blur-sm h-12 ${
+                        !lastFourSSN || lastFourSSN.length !== 4 
+                          ? 'border-red-300 focus:border-red-500' 
+                          : 'border-teal-200/50 focus:border-teal-500'
+                      }`}
+                      placeholder="1234"
+                      required
                     />
+                    {lastFourSSN && lastFourSSN.length !== 4 && (
+                      <p className="text-xs text-red-500 mt-1">Must be exactly 4 digits</p>
+                    )}
+                    {!lastFourSSN && (
+                      <p className="text-xs text-red-500 mt-1">Last 4 SSN is required</p>
+                    )}
                   </div>
                 </div>
 
